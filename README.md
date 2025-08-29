@@ -42,7 +42,17 @@ sudo cp chrome-profile-router /usr/local/bin/
 
 ## Configuration
 
-Create a configuration file at `~/.config/chrome-profile-router/config.json`:
+Create a configuration file at `~/.config/chrome-profile-router/config.json`. You can use the included `config.json.example` as a starting point:
+
+```bash
+# Copy the example configuration
+cp config.json.example ~/.config/chrome-profile-router/config.json
+
+# Edit the configuration for your needs
+nano ~/.config/chrome-profile-router/config.json
+```
+
+Here's a basic example of what your configuration should look like:
 
 ```json
 {
