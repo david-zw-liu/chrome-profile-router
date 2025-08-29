@@ -194,7 +194,7 @@ Routing: https://example.com  ->  profile-directory="Default"
 
 ## License
 
-[Add your license information here]
+MIT License
 
 ## Version
 
