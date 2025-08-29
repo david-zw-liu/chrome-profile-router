@@ -56,5 +56,7 @@
   <string>public.app-category.utilities</string>
   <key>NSHighResolutionCapable</key>
   <true/>
+  <key>LSUIElement</key>
+  <true/>
 </dict>
 </plist>
