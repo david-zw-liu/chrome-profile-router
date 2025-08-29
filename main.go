@@ -17,7 +17,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"time"
 )
 
 type Rule struct {
@@ -39,6 +38,7 @@ type compiledRule struct {
 var urlListener chan string = make(chan string)
 var config Config
 var compiledRules []compiledRule
+var lockFilePath string = filepath.Join(os.TempDir(), "chrome-profile-router.lock")
 
 func defaultConfigPath() string {
 	home, err := os.UserHomeDir()
@@ -140,15 +140,19 @@ func main() {
 		os.Exit(2)
 	}
 
+	// exit if another instance is running
+	f, err := os.OpenFile(lockFilePath, os.O_CREATE|os.O_EXCL, 0600)
+	if err != nil {
+		os.Exit(0)
+	}
+	defer func() {
+		f.Close()
+		os.Remove(lockFilePath)
+	}()
+
 	go func() {
-		timeout := time.After(4 * time.Second)
-		select {
-		case url := <-urlListener:
+		for url := range urlListener {
 			processURL(url)
-			os.Exit(0)
-		case <-timeout:
-			fmt.Fprintln(os.Stderr, "No URLs received within timeout")
-			os.Exit(1)
 		}
 	}()
 
