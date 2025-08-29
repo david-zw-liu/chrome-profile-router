@@ -4,3 +4,7 @@ chrome-profile-router: *.go *.h *.m Makefile
 .PHONY: clean
 clean:
 	rm -f ChromeProfileRouter.app/Contents/MacOS/chrome-profile-router
+
+unlock:
+	killall -9 chrome-profile-router || true
+	rm "${TMPDIR}chrome-profile-router.lock" || true
