@@ -1,8 +1,14 @@
 package main
 
+/*
+#cgo CFLAGS: -x objective-c
+#cgo LDFLAGS: -framework Cocoa
+#include "handler.h"
+*/
+import "C"
+
 import (
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io"
 	"net/url"
@@ -11,6 +17,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 )
 
 type Rule struct {
@@ -28,6 +35,10 @@ type compiledRule struct {
 	re               *regexp.Regexp
 	profileDirectory string
 }
+
+var urlListener chan string = make(chan string)
+var config Config
+var compiledRules []compiledRule
 
 func defaultConfigPath() string {
 	home, err := os.UserHomeDir()
@@ -89,13 +100,13 @@ func chooseProfile(urlStr string, compiled []compiledRule, fallback string) stri
 // Uses: open -na "Google Chrome" --args --profile-directory="X" "URL"
 func openInChrome(chromeAppPath, profileDir, urlStr string) error {
 	// Sanity: ensure it's a URL we can hand off (http/https/file/custom schemes may arrive).
-	// We’ll pass anything we got; but prefer http/https/mailto like a normal browser.
+	// We'll pass anything we got; but prefer http/https/mailto like a normal browser.
 	// macOS will pass the exact URL given to the default browser.
 	u, err := url.Parse(urlStr)
 	if err != nil {
 		// still try; Chrome might handle it
 	} else if u.Scheme == "" && !strings.HasPrefix(urlStr, "http") {
-		// If it’s bare text, try to force http
+		// If it's bare text, try to force http
 		urlStr = "http://" + urlStr
 	}
 
@@ -112,83 +123,39 @@ func openInChrome(chromeAppPath, profileDir, urlStr string) error {
 	return cmd.Run()
 }
 
-func isLikelyURL(s string) bool {
-	// When set as default browser, macOS usually passes one argument that’s the URL.
-	// But users might run it manually or drag-drop etc. Accept common patterns.
-	if strings.HasPrefix(s, "http://") || strings.HasPrefix(s, "https://") || strings.HasPrefix(s, "file://") || strings.HasPrefix(s, "mailto:") {
-		return true
+func processURL(urlStr string) {
+	profile := chooseProfile(urlStr, compiledRules, config.DefaultProfileDirectory)
+	fmt.Fprintf(os.Stderr, "Routing: %s  ->  profile-directory=%q\n", urlStr, profile)
+
+	if err := openInChrome(config.ChromeAppPath, profile, urlStr); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to open URL in Chrome: %v\n", err)
 	}
-	// Simple domain-ish heuristic
-	return strings.Contains(s, ".") || strings.Contains(s, ":")
 }
 
 func main() {
-	cfgPathFlag := flag.String("config", "", "Path to config JSON (default: ~/.config/chrome-profile-router/config.json)")
-	dryRun := flag.Bool("dry-run", false, "Don’t launch Chrome; just print routing decisions")
-	version := flag.Bool("version", false, "Print version")
-	flag.Parse()
-
-	if *version {
-		fmt.Println("chrome-profile-router 1.0.0")
-		return
-	}
-
-	cfgPath := *cfgPathFlag
-	if cfgPath == "" {
-		cfgPath = defaultConfigPath()
-	}
-
-	cfg, compiledRules, err := loadConfig(cfgPath)
+	var err error
+	config, compiledRules, err = loadConfig(defaultConfigPath())
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
 		os.Exit(2)
 	}
 
-	// Collect URLs from args. macOS typically passes one arg (the URL),
-	// but we’ll route multiple if provided.
-	args := flag.Args()
-	if len(args) == 0 {
-		// Some launchers might pass URLs via STDIN (rare). Try that as a fallback.
-		stat, _ := os.Stdin.Stat()
-		if (stat.Mode() & os.ModeCharDevice) == 0 {
-			stdinBytes, _ := io.ReadAll(os.Stdin)
-			txt := strings.TrimSpace(string(stdinBytes))
-			if txt != "" {
-				args = append(args, txt)
-			}
+	go func() {
+		timeout := time.After(4 * time.Second)
+		select {
+		case url := <-urlListener:
+			processURL(url)
+			os.Exit(0)
+		case <-timeout:
+			fmt.Fprintln(os.Stderr, "No URLs received within timeout")
+			os.Exit(1)
 		}
-	}
+	}()
 
-	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, "No URL provided.")
-		os.Exit(1)
-	}
+	C.RunApp()
+}
 
-	// Process each argument that looks like a URL
-	var firstErr error
-	for _, raw := range args {
-		if !isLikelyURL(raw) {
-			continue
-		}
-		urlStr := strings.TrimSpace(raw)
-		profile := chooseProfile(urlStr, compiledRules, cfg.DefaultProfileDirectory)
-		fmt.Fprintf(os.Stderr, "Routing: %s  ->  profile-directory=%q\n", urlStr, profile)
-
-		if *dryRun {
-			continue
-		}
-
-		if err := openInChrome(cfg.ChromeAppPath, profile, urlStr); err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to open URL in Chrome: %v\n", err)
-			if firstErr == nil {
-				firstErr = err
-			}
-		}
-	}
-
-	if firstErr != nil {
-		// exit non-zero if any failed
-		fmt.Fprintln(os.Stderr, "One or more URLs failed to open.")
-		os.Exit(3)
-	}
+//export HandleURL
+func HandleURL(u *C.char) {
+	urlListener <- C.GoString(u)
 }

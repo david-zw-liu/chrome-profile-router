@@ -1,14 +1,15 @@
 # Chrome Profile Router
 
-A Go-based utility that automatically routes URLs to different Chrome profiles based on configurable rules. Perfect for managing multiple Chrome profiles for different purposes (work, personal, development, etc.).
+A native macOS application written in Go that automatically routes URLs to different Chrome profiles based on configurable rules. Perfect for managing multiple Chrome profiles for different purposes (work, personal, development, etc.).
 
 ## Features
 
 - **Smart URL Routing**: Automatically opens URLs in the appropriate Chrome profile based on regex patterns
-- **macOS Optimized**: Uses native macOS `open` command for seamless Chrome integration
+- **Native macOS App**: Built as a proper macOS application bundle with Objective-C bindings
+- **Default Browser Integration**: Can be set as your system's default web browser
 - **Flexible Configuration**: JSON-based configuration with support for multiple routing rules
 - **Fallback Support**: Default profile for URLs that don't match any rules
-- **Dry Run Mode**: Test your routing configuration without actually opening Chrome
+- **Automatic URL Handling**: Processes URLs passed from the system when set as default browser
 
 ## Use Cases
 
@@ -16,29 +17,28 @@ A Go-based utility that automatically routes URLs to different Chrome profiles b
 - **Development**: Route development URLs to a profile with developer tools and extensions
 - **Multiple Projects**: Separate Chrome profiles for different client projects
 - **Security**: Isolate sensitive browsing to specific profiles
+- **Productivity**: Automatically organize your browsing across different contexts
 
 ## Installation
 
 ### Prerequisites
 
 - Go 1.16 or later
-- macOS (uses macOS-specific Chrome launching)
+- macOS (uses macOS-specific Chrome launching and Objective-C bindings)
 - Google Chrome installed
+- Xcode Command Line Tools (for Objective-C compilation)
 
 ### Build from Source
 
 ```bash
 git clone <repository-url>
 cd chrome-profile-router
-go build -o chrome-profile-router main.go
+make
 ```
 
-### Install to System Path (Optional)
+This will create a `chrome-profile-router` binary into `ChromeProfileRouter.app` macOS application bundle.
 
-```bash
-# Copy to a directory in your PATH
-sudo cp chrome-profile-router /usr/local/bin/
-```
+And move the `ChromeProfileRouter.app` to the `/Applications/` folder
 
 ## Configuration
 
@@ -93,65 +93,39 @@ Chrome profile directories are located at:
 Common profile names include:
 - `Default` - Default profile
 - `Profile 1`, `Profile 2` - Additional profiles
-- Custom names you've set
 
 ## Usage
 
-### Basic Usage
+### As Default Browser (Recommended)
 
-```bash
-# Route a single URL
-./chrome-profile-router "https://github.com/yourcompany/project"
-
-# Route multiple URLs
-./chrome-profile-router "https://github.com/yourcompany/project" "https://stackoverflow.com/questions/123"
-```
-
-### Command Line Options
-
-```bash
-./chrome-profile-router [options] [URLs...]
-
-Options:
-  -config string
-        Path to config JSON (default: ~/.config/chrome-profile-router/config.json)
-  -dry-run
-        Don't launch Chrome; just print routing decisions
-  -version
-        Print version
-```
-
-### Examples
-
-```bash
-# Test configuration without opening Chrome
-./chrome-profile-router -dry-run "https://github.com/yourcompany/project"
-
-# Use custom config file
-./chrome-profile-router -config ./my-config.json "https://example.com"
-
-# Route URLs from stdin
-echo "https://github.com/yourcompany/project" | ./chrome-profile-router
-```
-
-### Setting as Default Browser
-
-To use Chrome Profile Router as your default browser on macOS:
-
-1. Build the application
-2. In System Preferences > General > Default web browser, select Chrome Profile Router
-3. Or use the command line:
+1. build and move app into /Applications/ folder
+2. use the command line:
    ```bash
-   open -a "Chrome Profile Router"
+   # cli tool to set default browser
+   brew install defaultbrowser
+
+   # register the app to launch service
+   /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f /Applications/ChromeProfileRouter.app
+
+   # set default browser
+   defaultbrowser chromeprofilerouter
    ```
+3. Now when you click links in other applications, they'll automatically route to the appropriate Chrome profile
 
 ## How It Works
 
-1. **URL Analysis**: The router receives URLs from command line arguments or stdin
+1. **URL Reception**: The router receives URLs from the system when set as default browser, or from command line arguments
 2. **Pattern Matching**: Each URL is tested against the regex patterns in your configuration
 3. **Profile Selection**: The first matching rule determines which Chrome profile to use
 4. **Chrome Launch**: Chrome is launched with the selected profile using macOS's `open` command
 5. **Fallback**: If no rules match, the default profile is used
+
+### Technical Details
+
+- **Objective-C Integration**: Uses CGO to interface with macOS Cocoa framework
+- **Native App Bundle**: Creates a proper `.app` bundle for system integration
+- **URL Handling**: Implements the macOS URL handling protocol for default browser functionality
+- **Profile Management**: Leverages Chrome's `--profile-directory` argument for profile switching
 
 ## Troubleshooting
 
@@ -163,25 +137,35 @@ To use Chrome Profile Router as your default browser on macOS:
 - Ensure you have permission to launch Chrome
 
 **URLs not routing correctly**
-- Test your regex patterns with `-dry-run` flag
 - Verify profile directory names match exactly
 - Check the configuration file syntax
+- Ensure regex patterns are valid
 
 **Permission denied errors**
 - Ensure the binary is executable: `chmod +x chrome-profile-router`
 - Check file permissions on your config directory
 
-### Debug Mode
+**Build errors**
+- Ensure Xcode Command Line Tools are installed: `xcode-select --install`
+- Verify Go version is 1.16 or later: `go version`
 
-Use the `-dry-run` flag to see routing decisions without opening Chrome:
+## Development
+
+### Project Structure
+
+- `main.go` - Main Go application with URL routing logic
+- `handler.h` - C header file for Objective-C integration
+- `handle.m` - Objective-C implementation for macOS URL handling
+- `Makefile` - Build automation for the macOS app bundle
+
+### Building
 
 ```bash
-./chrome-profile-router -dry-run "https://example.com"
-```
+# Build the binary and app bundle
+make
 
-This will output:
-```
-Routing: https://example.com  ->  profile-directory="Default"
+# Clean build artifacts
+make clean
 ```
 
 ## Contributing
