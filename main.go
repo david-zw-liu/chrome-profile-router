@@ -24,10 +24,19 @@ type Rule struct {
 	ProfileDirectory string `json:"profile_directory"`
 }
 
+type StrategyForUnknownUrls string
+
+const (
+	StrategyForUnknownUrlsUseBrowserDefault StrategyForUnknownUrls = "use-browser-default"
+	StrategyForUnknownUrlsUseDefaultProfile StrategyForUnknownUrls = "use-default-profile"
+)
+
 type Config struct {
-	ChromeAppPath           string `json:"chrome_app_path"`
-	DefaultProfileDirectory string `json:"default_profile_directory"`
-	Rules                   []Rule `json:"rules"`
+	ChromeAppPath           string                 `json:"chrome_app_path"`
+	DefaultProfileDirectory string                 `json:"default_profile_directory"`
+	StrategyForUnknownUrls  StrategyForUnknownUrls `json:"strategy_for_unknown_urls"`
+	Rules                   []Rule                 `json:"rules"`
+	compiledRules           []compiledRule
 }
 
 type compiledRule struct {
@@ -36,8 +45,6 @@ type compiledRule struct {
 }
 
 var urlListener chan string = make(chan string)
-var config Config
-var compiledRules []compiledRule
 var lockFilePath string = filepath.Join(os.TempDir(), "chrome-profile-router.lock")
 
 func defaultConfigPath() string {
@@ -48,21 +55,21 @@ func defaultConfigPath() string {
 	return filepath.Join(home, ".config", "chrome-profile-router", "config.json")
 }
 
-func loadConfig(path string) (Config, []compiledRule, error) {
+func loadConfig(path string) (Config, error) {
 	var cfg Config
 
 	f, err := os.Open(path)
 	if err != nil {
-		return cfg, nil, fmt.Errorf("open config: %w", err)
+		return cfg, fmt.Errorf("open config: %w", err)
 	}
 	defer f.Close()
 
 	data, err := io.ReadAll(f)
 	if err != nil {
-		return cfg, nil, fmt.Errorf("read config: %w", err)
+		return cfg, fmt.Errorf("read config: %w", err)
 	}
 	if err := json.Unmarshal(data, &cfg); err != nil {
-		return cfg, nil, fmt.Errorf("parse config JSON: %w", err)
+		return cfg, fmt.Errorf("parse config JSON: %w", err)
 	}
 
 	if cfg.ChromeAppPath == "" {
@@ -75,25 +82,29 @@ func loadConfig(path string) (Config, []compiledRule, error) {
 	var cr []compiledRule
 	for i, r := range cfg.Rules {
 		if r.Pattern == "" || r.ProfileDirectory == "" {
-			return cfg, nil, fmt.Errorf("rule %d invalid: pattern and profile_directory are required", i)
+			return cfg, fmt.Errorf("rule %d invalid: pattern and profile_directory are required", i)
 		}
 		re, err := regexp.Compile(r.Pattern)
 		if err != nil {
-			return cfg, nil, fmt.Errorf("rule %d: compile regexp: %w", i, err)
+			return cfg, fmt.Errorf("rule %d: compile regexp: %w", i, err)
 		}
 		cr = append(cr, compiledRule{re: re, profileDirectory: r.ProfileDirectory})
 	}
+	cfg.compiledRules = cr
 
-	return cfg, cr, nil
+	return cfg, nil
 }
 
-func chooseProfile(urlStr string, compiled []compiledRule, fallback string) string {
-	for _, r := range compiled {
+func chooseProfile(urlStr string, config Config) string {
+	for _, r := range config.compiledRules {
 		if r.re.MatchString(urlStr) {
 			return r.profileDirectory
 		}
 	}
-	return fallback
+	if config.StrategyForUnknownUrls == StrategyForUnknownUrlsUseDefaultProfile {
+		return config.DefaultProfileDirectory
+	}
+	return "" // StrategyForUnknownUrlsUseBrowserDefault
 }
 
 // macOS-friendly launcher for Chrome with profile.
@@ -113,9 +124,11 @@ func openInChrome(chromeAppPath, profileDir, urlStr string) error {
 	args := []string{
 		"-na", chromeAppPath,
 		"--args",
-		fmt.Sprintf("--profile-directory=%s", profileDir),
-		urlStr,
 	}
+	if profileDir != "" {
+		args = append(args, fmt.Sprintf("--profile-directory=%s", profileDir))
+	}
+	args = append(args, urlStr)
 
 	cmd := exec.Command("open", args...)
 	cmd.Stdout = os.Stdout
@@ -123,8 +136,8 @@ func openInChrome(chromeAppPath, profileDir, urlStr string) error {
 	return cmd.Run()
 }
 
-func processURL(urlStr string) {
-	profile := chooseProfile(urlStr, compiledRules, config.DefaultProfileDirectory)
+func processURL(urlStr string, config Config) {
+	profile := chooseProfile(urlStr, config)
 	fmt.Fprintf(os.Stderr, "Routing: %s  ->  profile-directory=%q\n", urlStr, profile)
 
 	if err := openInChrome(config.ChromeAppPath, profile, urlStr); err != nil {
@@ -133,8 +146,7 @@ func processURL(urlStr string) {
 }
 
 func main() {
-	var err error
-	config, compiledRules, err = loadConfig(defaultConfigPath())
+	config, err := loadConfig(defaultConfigPath())
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
 		os.Exit(2)
@@ -152,7 +164,7 @@ func main() {
 
 	go func() {
 		for url := range urlListener {
-			processURL(url)
+			processURL(url, config)
 		}
 	}()
 

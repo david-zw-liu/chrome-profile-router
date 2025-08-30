@@ -58,6 +58,7 @@ Here's a basic example of what your configuration should look like:
 {
   "chrome_app_path": "/Applications/Google Chrome.app",
   "default_profile_directory": "Default",
+  "strategy_for_unknown_urls": "use-default-profile",
   "rules": [
     {
       "pattern": "github\\.com/yourcompany",
@@ -79,6 +80,9 @@ Here's a basic example of what your configuration should look like:
 
 - **`chrome_app_path`**: Path to Chrome application (defaults to `/Applications/Google Chrome.app`)
 - **`default_profile_directory`**: Profile to use when no rules match (defaults to `"Default"`)
+- **`strategy_for_unknown_urls`**: Strategy for handling URLs that don't match any rules
+  - **`"use-default-profile"`**: Use the profile specified in `default_profile_directory`
+  - **`"use-browser-default"`**: Let the system's default browser handle the URL (Chrome Profile Router won't interfere)
 - **`rules`**: Array of routing rules
   - **`pattern`**: Regex pattern to match against URLs
   - **`profile_directory`**: Chrome profile directory name to use for matching URLs
@@ -118,7 +122,9 @@ Common profile names include:
 2. **Pattern Matching**: Each URL is tested against the regex patterns in your configuration
 3. **Profile Selection**: The first matching rule determines which Chrome profile to use
 4. **Chrome Launch**: Chrome is launched with the selected profile using macOS's `open` command
-5. **Fallback**: If no rules match, the default profile is used
+5. **Fallback Strategy**: If no rules match, the behavior depends on your `strategy_for_unknown_urls` setting:
+   - **`use-default-profile`**: Opens the URL in Chrome using the profile specified in `default_profile_directory`
+   - **`use-browser-default`**: Passes the URL to the system's default browser (Chrome Profile Router won't interfere)
 
 ### Technical Details
 

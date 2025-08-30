@@ -1,86 +1,27 @@
 {
   "chrome_app_path": "/Applications/Google Chrome.app",
   "default_profile_directory": "Default",
+  "strategy_for_unknown_urls": "use-browser-default",
   "rules": [
     {
       "pattern": "github\\.com/yourcompany",
-      "profile_directory": "Work"
+      "profile_directory": "Profile 1"
     },
     {
       "pattern": "github\\.com/yourusername",
-      "profile_directory": "Personal"
+      "profile_directory": "Default"
     },
     {
       "pattern": "stackoverflow\\.com",
-      "profile_directory": "Development"
+      "profile_directory": "Profile 1"
     },
     {
       "pattern": "stackoverflow\\.com/questions",
-      "profile_directory": "Development"
+      "profile_directory": "Profile 1"
     },
     {
       "pattern": "gmail\\.com",
-      "profile_directory": "Personal"
-    },
-    {
-      "pattern": "mail\\.google\\.com",
-      "profile_directory": "Personal"
-    },
-    {
-      "pattern": "slack\\.com",
-      "profile_directory": "Work"
-    },
-    {
-      "pattern": "teams\\.microsoft\\.com",
-      "profile_directory": "Work"
-    },
-    {
-      "pattern": "zoom\\.us",
-      "profile_directory": "Work"
-    },
-    {
-      "pattern": "jira\\.yourcompany\\.com",
-      "profile_directory": "Work"
-    },
-    {
-      "pattern": "confluence\\.yourcompany\\.com",
-      "profile_directory": "Work"
-    },
-    {
-      "pattern": "notion\\.so",
-      "profile_directory": "Personal"
-    },
-    {
-      "pattern": "reddit\\.com",
-      "profile_directory": "Personal"
-    },
-    {
-      "pattern": "youtube\\.com",
-      "profile_directory": "Personal"
-    },
-    {
-      "pattern": "netflix\\.com",
-      "profile_directory": "Personal"
-    },
-    {
-      "pattern": "amazon\\.com",
-      "profile_directory": "Personal"
-    },
-    {
-      "pattern": "linkedin\\.com",
-      "profile_directory": "Work"
-    },
-    {
-      "pattern": "twitter\\.com",
-      "profile_directory": "Personal"
-    },
-    {
-      "pattern": "facebook\\.com",
-      "profile_directory": "Personal"
-    },
-    {
-      "pattern": "instagram\\.com",
-      "profile_directory": "Personal"
+      "profile_directory": "Default"
     }
   ]
 }
