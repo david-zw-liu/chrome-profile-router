@@ -6,4 +6,4 @@ extern void HandleURL(char*);
   - (void)handleGetURLEvent:(NSAppleEventDescriptor *) event withReplyEvent:(NSAppleEventDescriptor *)replyEvent;
 @end
 
-void RunApp();
+void Run();

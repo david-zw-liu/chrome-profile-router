@@ -214,7 +214,7 @@ func main() {
 		}
 	}()
 
-	C.RunApp()
+	C.Run()
 }
 
 //export HandleURL

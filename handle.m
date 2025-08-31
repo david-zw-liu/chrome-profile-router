@@ -20,7 +20,7 @@
 }
 @end
 
-void RunApp(void) {
+void Run(void) {
   [NSAutoreleasePool new];
   [NSApplication sharedApplication];
   BrowseAppDelegate *app = [BrowseAppDelegate alloc];
