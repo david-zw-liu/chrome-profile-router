@@ -5,5 +5,5 @@ chrome-profile-router: *.go *.h *.m Makefile
 clean:
 	rm -f ChromeProfileRouter.app/Contents/MacOS/chrome-profile-router
 
-unlock:
-	killall -9 chrome-profile-router || true
+kill:
+	killall -9 chrome-profile-router
