@@ -208,6 +208,7 @@ func main() {
 	}
 	defer os.Remove(pidFilePath)
 
+	logger.Info("Start listening for URLs")
 	go func() {
 		for url := range urlListener {
 			processURL(url, config)
