@@ -59,6 +59,7 @@ Here's a basic example of what your configuration should look like:
   "chrome_app_path": "/Applications/Google Chrome.app",
   "default_profile_directory": "Default",
   "strategy_for_unknown_urls": "use-default-profile",
+  "log_level": "info",
   "rules": [
     {
       "pattern": "github\\.com/yourcompany",
@@ -80,6 +81,7 @@ Here's a basic example of what your configuration should look like:
 
 - **`chrome_app_path`**: Path to Chrome application (defaults to `/Applications/Google Chrome.app`)
 - **`default_profile_directory`**: Profile to use when no rules match (defaults to `"Default"`)
+- **`log_level`**: Sets the verbosity of logging output. Options include `"debug"`, `"info"`, `"warn"`, and `"error"`. (defaults to `"info"`)
 - **`strategy_for_unknown_urls`**: Strategy for handling URLs that don't match any rules
   - **`"use-default-profile"`**: Use the profile specified in `default_profile_directory`
   - **`"use-browser-default"`**: Let the system's default browser handle the URL (Chrome Profile Router won't interfere)

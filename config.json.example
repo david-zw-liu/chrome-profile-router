@@ -2,6 +2,7 @@
   "chrome_app_path": "/Applications/Google Chrome.app",
   "default_profile_directory": "Default",
   "strategy_for_unknown_urls": "use-browser-default",
+  "log_level": "info",
   "rules": [
     {
       "pattern": "github\\.com/yourcompany",

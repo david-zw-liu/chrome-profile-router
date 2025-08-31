@@ -17,6 +17,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/sirupsen/logrus"
 )
 
 type Rule struct {
@@ -36,7 +38,9 @@ type Config struct {
 	DefaultProfileDirectory string                 `json:"default_profile_directory"`
 	StrategyForUnknownUrls  StrategyForUnknownUrls `json:"strategy_for_unknown_urls"`
 	Rules                   []Rule                 `json:"rules"`
+	LogLevel                string                 `json:"log_level"`
 	compiledRules           []compiledRule
+	parsedLogLevel          logrus.Level
 }
 
 type compiledRule struct {
@@ -45,7 +49,9 @@ type compiledRule struct {
 }
 
 var urlListener chan string = make(chan string)
-var lockFilePath string = filepath.Join(os.TempDir(), "chrome-profile-router.lock")
+var lockFilePath string = filepath.Join("/tmp", "chrome-profile-router.lock")
+var logFilePath string = filepath.Join("/tmp", "chrome-profile-router.log")
+var logger *logrus.Logger = nil
 
 func defaultConfigPath() string {
 	home, err := os.UserHomeDir()
@@ -91,6 +97,15 @@ func loadConfig(path string) (Config, error) {
 		cr = append(cr, compiledRule{re: re, profileDirectory: r.ProfileDirectory})
 	}
 	cfg.compiledRules = cr
+
+	if cfg.LogLevel == "" {
+		cfg.LogLevel = "info"
+	}
+	parsedLogLevel, err := logrus.ParseLevel(cfg.LogLevel)
+	if err != nil {
+		return cfg, fmt.Errorf("parse log level: %w", err)
+	}
+	cfg.parsedLogLevel = parsedLogLevel
 
 	return cfg, nil
 }
@@ -138,24 +153,40 @@ func openInChrome(chromeAppPath, profileDir, urlStr string) error {
 
 func processURL(urlStr string, config Config) {
 	profile := chooseProfile(urlStr, config)
-	fmt.Fprintf(os.Stderr, "Routing: %s  ->  profile-directory=%q\n", urlStr, profile)
+	logger.Debugf("Routing: %s  ->  profile-directory=%q\n", urlStr, profile)
 
 	if err := openInChrome(config.ChromeAppPath, profile, urlStr); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to open URL in Chrome: %v\n", err)
+		logger.Errorf("Failed to open URL in Chrome: %v\n", err)
 	}
 }
 
 func main() {
+	// load config
 	config, err := loadConfig(defaultConfigPath())
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
 		os.Exit(2)
+		return
 	}
+
+	// initialize logger
+	logFile, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to open log file: %v\n", err)
+		os.Exit(2)
+		return
+	}
+	logger = logrus.New()
+	logger.SetOutput(logFile)
+	logger.SetLevel(config.parsedLogLevel)
+	defer logFile.Close()
 
 	// exit if another instance is running
 	f, err := os.OpenFile(lockFilePath, os.O_CREATE|os.O_EXCL, 0600)
 	if err != nil {
+		logger.Debugln("Another instance is already running, exiting")
 		os.Exit(0)
+		return
 	}
 	defer func() {
 		f.Close()

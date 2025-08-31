@@ -7,4 +7,3 @@ clean:
 
 unlock:
 	killall -9 chrome-profile-router || true
-	rm "${TMPDIR}chrome-profile-router.lock" || true
