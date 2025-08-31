@@ -7,4 +7,3 @@ extern void HandleURL(char*);
 @end
 
 void RunApp();
-void ShowAlert(char*, char*);
