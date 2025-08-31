@@ -16,7 +16,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/sirupsen/logrus"
 )
@@ -49,7 +51,7 @@ type compiledRule struct {
 }
 
 var urlListener chan string = make(chan string)
-var lockFilePath string = filepath.Join("/tmp", "chrome-profile-router.lock")
+var pidFilePath string = filepath.Join("/tmp", "chrome-profile-router.pid")
 var logFilePath string = filepath.Join("/tmp", "chrome-profile-router.log")
 var logger *logrus.Logger = nil
 
@@ -160,6 +162,18 @@ func processURL(urlStr string, config Config) {
 	}
 }
 
+func isRunning(pidFilePath string) bool {
+	if data, err := os.ReadFile(pidFilePath); err == nil {
+		if pid, err := strconv.Atoi(string(data)); err == nil {
+			if err := syscall.Kill(pid, 0); err == nil {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
 func main() {
 	// load config
 	config, err := loadConfig(defaultConfigPath())
@@ -182,16 +196,17 @@ func main() {
 	defer logFile.Close()
 
 	// exit if another instance is running
-	f, err := os.OpenFile(lockFilePath, os.O_CREATE|os.O_EXCL, 0600)
-	if err != nil {
-		logger.Debugln("Another instance is already running, exiting")
+	if isRunning(pidFilePath) {
+		logger.Debug("Another instance is running, exiting")
 		os.Exit(0)
 		return
 	}
-	defer func() {
-		f.Close()
-		os.Remove(lockFilePath)
-	}()
+	if err := os.WriteFile(pidFilePath, []byte(strconv.Itoa(os.Getpid())), 0644); err != nil {
+		logger.Errorf("failed to write pid file: %v", err)
+		os.Exit(2)
+		return
+	}
+	defer os.Remove(pidFilePath)
 
 	go func() {
 		for url := range urlListener {
