@@ -197,7 +197,7 @@ func main() {
 
 	// exit if another instance is running
 	if isRunning(pidFilePath) {
-		logger.Debug("Another instance is running, exiting")
+		logger.Error("Another instance is running, exiting")
 		os.Exit(0)
 		return
 	}
