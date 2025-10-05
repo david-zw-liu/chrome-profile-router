@@ -18,6 +18,11 @@
            withReplyEvent:(NSAppleEventDescriptor *)replyEvent {
   HandleURL((char*)[[[event paramDescriptorForKeyword:keyDirectObject] stringValue] UTF8String]);
 }
+
+- (BOOL)application:(NSApplication *)sender openFile:(NSString *)filename {
+  HandleURL((char*)[filename UTF8String]);
+  return YES;
+}
 @end
 
 void Run(void) {

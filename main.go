@@ -133,9 +133,22 @@ func openInChrome(chromeAppPath, profileDir, urlStr string) error {
 	u, err := url.Parse(urlStr)
 	if err != nil {
 		// still try; Chrome might handle it
-	} else if u.Scheme == "" && !strings.HasPrefix(urlStr, "http") {
-		// If it's bare text, try to force http
-		urlStr = "http://" + urlStr
+	} else if u.Scheme == "" {
+		// Check if it's a file path
+		if strings.HasPrefix(urlStr, "/") || strings.HasPrefix(urlStr, "~") || strings.HasPrefix(urlStr, "./") || strings.HasPrefix(urlStr, "../") {
+			// Convert absolute or relative file path to file:// URL
+			absPath := urlStr
+			if !filepath.IsAbs(urlStr) {
+				if absPath, err = filepath.Abs(urlStr); err == nil {
+					urlStr = "file://" + absPath
+				}
+			} else {
+				urlStr = "file://" + urlStr
+			}
+		} else if !strings.HasPrefix(urlStr, "http") {
+			// If it's bare text (not a file path), try to force https
+			urlStr = "https://" + urlStr
+		}
 	}
 
 	args := []string{
