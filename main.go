@@ -35,6 +35,13 @@ const (
 	StrategyForUnknownUrlsUseDefaultProfile StrategyForUnknownUrls = "use-default-profile"
 )
 
+const focusChromeWindowScript = `
+	delay 0.05
+	tell application "Google Chrome"
+		activate
+	end tell
+`
+
 type Config struct {
 	ChromeAppPath           string                 `json:"chrome_app_path"`
 	DefaultProfileDirectory string                 `json:"default_profile_directory"`
@@ -163,7 +170,18 @@ func openInChrome(chromeAppPath, profileDir, urlStr string) error {
 	cmd := exec.Command("open", args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+
+	osascriptCmd := exec.Command("osascript", "-e", focusChromeWindowScript)
+	osascriptCmd.Stdout = os.Stdout
+	osascriptCmd.Stderr = os.Stderr
+	if err := osascriptCmd.Run(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func processURL(urlStr string, config Config) {
